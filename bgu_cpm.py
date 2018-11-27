@@ -45,10 +45,12 @@ def create_x(df, is_train):
 
 
 if __name__ == '__main__':
-    y_pred_no_tune = np.ndarray(shape=(2,2), dtype=float, order='F')
-    prediction = pd.DataFrame(y_pred_no_tune, columns=['predictions']).to_csv(r'C:\Users\omer_an\Downloads\kaggle_bgu\all\test_my.csv', header=["Id","Class"])
-    exit(1)
-    rf = RandomForestRegressor(n_estimators=1000, random_state=42)
+    import os
+
+    os.remove(r'C:\Users\omer_an\Downloads\kaggle_bgu\all\submission_with_tunning.csv')
+
+
+    rf = RandomForestRegressor(n_estimators=200, min_samples_split=2, min_samples_leaf=4, max_depth=40, bootstrap=True, random_state=42) #n_estimators': 200, min_samples_split: 2, min_samples_leaf: 4, max_depth: 40, bootstrap: True
 
     train_df = pd.read_csv(r'C:\Users\omer_an\Downloads\kaggle_bgu\all\saftey_efficay_myopiaTrain.csv')
     test_df = pd.read_csv(r'C:\Users\omer_an\Downloads\kaggle_bgu\all\saftey_efficay_myopiaTest.csv')
@@ -62,51 +64,61 @@ if __name__ == '__main__':
 
     X_train, X_test, y_train, y_test = train_test_split(X_train, y_train, test_size=0.33, random_state=42)
 
-    # hyper tunning of parameters of RF
-    # Number of trees in random forest
-    n_estimators = [int(x) for x in np.linspace(start=200, stop=2000, num=10)]
-    # Number of features to consider at every split
-    #max_features = ['auto', 'sqrt']
-    # Maximum number of levels in tree
-    max_depth = [int(x) for x in np.linspace(10, 110, num=11)]
-    max_depth.append(None)
-    # Minimum number of samples required to split a node
-    min_samples_split = [2, 5, 10]
-    # Minimum number of samples required at each leaf node
-    min_samples_leaf = [1, 2, 4]
-    # Method of selecting samples for training each tree
-    bootstrap = [True, False]
-    # Create the random grid
-    random_grid = {'n_estimators': n_estimators,
-     #              'max_features': max_features,
-                   'max_depth': max_depth,
-                   'min_samples_split': min_samples_split,
-                   'min_samples_leaf': min_samples_leaf,
-                   'bootstrap': bootstrap}
-    print(random_grid)
-    rf_random = RandomizedSearchCV(estimator = rf, param_distributions = random_grid, n_iter = 10, cv = 3, verbose=2,
-                                   random_state=42, n_jobs=-1)
+    look_for_best_param = False
+    if look_for_best_param:
+        # hyper tunning of parameters of RF
+        # Number of trees in random forest
+        n_estimators = [int(x) for x in np.linspace(start=200, stop=2000, num=10)]
+        # Number of features to consider at every split
+        #max_features = ['auto', 'sqrt']
+        # Maximum number of levels in tree
+        max_depth = [int(x) for x in np.linspace(10, 110, num=11)]
+        max_depth.append(None)
+        # Minimum number of samples required to split a node
+        min_samples_split = [2, 5, 10]
+        # Minimum number of samples required at each leaf node
+        min_samples_leaf = [1, 2, 4]
+        # Method of selecting samples for training each tree
+        bootstrap = [True, False]
+        # Create the random grid
+        random_grid = {'n_estimators': n_estimators,
+         #              'max_features': max_features,
+                       'max_depth': max_depth,
+                       'min_samples_split': min_samples_split,
+                       'min_samples_leaf': min_samples_leaf,
+                       'bootstrap': bootstrap}
+        print(random_grid)
+        rf_random = RandomizedSearchCV(estimator = rf, param_distributions = random_grid, n_iter = 10, cv = 3, verbose=2,
+                                       random_state=42, n_jobs=-1)
 
-    print("start RandomizedSearchCV")
-    rf_random.fit(X_train, y_train)
+        print("start RandomizedSearchCV")
+        rf_random.fit(X_train, y_train)
 
-    print("best params are : \n{} ".format(rf_random.best_params_)) #{'n_estimators': 200, 'min_samples_split': 2, 'min_samples_leaf': 4, 'max_depth': 40, 'bootstrap': True}
+        print("best params are : \n{} ".format(rf_random.best_params_)) #{'n_estimators': 200, 'min_samples_split': 2, 'min_samples_leaf': 4, 'max_depth': 40, 'bootstrap': True}
 
 
     print("start fitting the model")
     rf.fit(X_train, y_train)
-    base_accuracy_no_tuning = evaluate(rf, X_test, y_test)
-    base_accuracy_with_tuning = evaluate(rf_random, X_test, y_test)
-    print("base_accuracy_no_tuning  : {} and base_accuracy_with_tuning  : {} ".format(base_accuracy_no_tuning ,
-                                                                                      base_accuracy_with_tuning ))
+    # base_accuracy_no_tuning = evaluate(rf, X_test, y_test)
+    # base_accuracy_with_tuning = evaluate(rf_random, X_test, y_test)
+    # print("base_accuracy_no_tuning  : {} and base_accuracy_with_tuning  : {} ".format(base_accuracy_no_tuning ,
+    #                                                                                   base_accuracy_with_tuning ))
+    from sklearn.metrics import roc_auc_score
+
+    y_pred_test = rf.predict(X_test)
+    auc = roc_auc_score(y_test, y_pred_test)
+    print("aux test : {}".format(auc))
 
     y_pred_no_tune = rf.predict(X_competitopn)
-    y_pred_with_tune = rf_random.predict(X_competitopn)
+    y_pred_no_tune = y_pred_no_tune.astype(float)
+    # y_pred_with_tune = rf_random.predict(X_competitopn)
     print("after fit #############")
 
-    prediction = pd.DataFrame(y_pred_no_tune, columns=['predictions']).to_csv(r'C:\Users\omer_an\Downloads\kaggle_bgu\all\submission_no_tunning.csv',header=["Id","Class"])
-    prediction = pd.DataFrame(y_pred_with_tune, columns=['predictions']).to_csv(r'C:\Users\omer_an\Downloads\kaggle_bgu\all\submission_with_tunning.csv',header=["Id","Class"])
+    #todo: here addd code that makw csv with 2 coloumns , ['Id','Class'] , Class
+    prediction = pd.DataFrame(y_pred_no_tune, columns=['predictions']).to_csv(r'C:\Users\omer_an\Downloads\kaggle_bgu\all\submission_with_tunning.csv',header=["Class"])
+    # prediction = pd.DataFrame(y_pred_with_tune, columns=['predictions']).to_csv(r'C:\Users\omer_an\Downloads\kaggle_bgu\all\submission_with_tunning.csv',header=["Id","Class"])
 
     #todo : get this erro with submission :Evaluation Exception:  is not a valid value for Double. Parameter name: value
+
     # chagne predicted values to double
     # get auc real score
