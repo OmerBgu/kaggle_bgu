@@ -1,11 +1,13 @@
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
+import os
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import Imputer
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.model_selection import train_test_split
+import csv
 
 
 def evaluate(model, test_features, test_labels):
@@ -45,12 +47,10 @@ def create_x(df, is_train):
 
 
 if __name__ == '__main__':
-    import os
-
     os.remove(r'C:\Users\omer_an\Downloads\kaggle_bgu\all\submission_with_tunning.csv')
 
-
-    rf = RandomForestRegressor(n_estimators=200, min_samples_split=2, min_samples_leaf=4, max_depth=40, bootstrap=True, random_state=42) #n_estimators': 200, min_samples_split: 2, min_samples_leaf: 4, max_depth: 40, bootstrap: True
+    rf = RandomForestRegressor(n_estimators=200, min_samples_split=2, min_samples_leaf=4, max_depth=40,
+                               bootstrap=True, random_state=42) # 0.5813121361665429
 
     train_df = pd.read_csv(r'C:\Users\omer_an\Downloads\kaggle_bgu\all\saftey_efficay_myopiaTrain.csv')
     test_df = pd.read_csv(r'C:\Users\omer_an\Downloads\kaggle_bgu\all\saftey_efficay_myopiaTest.csv')
@@ -110,15 +110,24 @@ if __name__ == '__main__':
     print("aux test : {}".format(auc))
 
     y_pred_no_tune = rf.predict(X_competitopn)
+    mean = np.mean(y_pred_no_tune)
     y_pred_no_tune = y_pred_no_tune.astype(float)
     # y_pred_with_tune = rf_random.predict(X_competitopn)
     print("after fit #############")
 
-    #todo: here addd code that makw csv with 2 coloumns , ['Id','Class'] , Class
-    prediction = pd.DataFrame(y_pred_no_tune, columns=['predictions']).to_csv(r'C:\Users\omer_an\Downloads\kaggle_bgu\all\submission_with_tunning.csv',header=["Class"])
+    #todo: here addd code that makw csv with 2 coloumns , ['Id','Class'] , Class and convert 0 to 0.001
+
+    with open(r'C:\Users\omer_an\Downloads\kaggle_bgu\all\submission_with_tunning.csv', 'w', newline='') as csvfile:
+        indices = list(range(1, len(y_pred_no_tune)+1))
+        fieldnames = ["Id", "Class"]
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+        writer.writeheader()
+        for i in range(0, len(y_pred_no_tune)):
+            if y_pred_no_tune[i] != 0:
+                writer.writerow({'Id': indices[i], 'Class': y_pred_no_tune[i]})
+            else:
+                writer.writerow({'Id': indices[i], 'Class': mean})
+    #prediction = pd.DataFrame(y_pred_no_tune, columns=['predictions']).to_csv(r'C:\Users\omer_an\Downloads\kaggle_bgu\all\submission_with_tunning.csv',header=["Class"])
     # prediction = pd.DataFrame(y_pred_with_tune, columns=['predictions']).to_csv(r'C:\Users\omer_an\Downloads\kaggle_bgu\all\submission_with_tunning.csv',header=["Id","Class"])
 
-    #todo : get this erro with submission :Evaluation Exception:  is not a valid value for Double. Parameter name: value
-
-    # chagne predicted values to double
-    # get auc real score
