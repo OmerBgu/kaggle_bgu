@@ -8,6 +8,7 @@ from sklearn.preprocessing import Imputer
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.model_selection import train_test_split
 import csv
+import matplotlib.pyplot as plt
 
 
 def evaluate(model, test_features, test_labels):
@@ -47,7 +48,8 @@ def create_x(df, is_train):
 
 
 if __name__ == '__main__':
-    os.remove(r'C:\Users\omer_an\Downloads\kaggle_bgu\all\submission_with_tunning.csv')
+    if os.path.exists(r'C:\Users\omer_an\Downloads\kaggle_bgu\all\submission_with_tunning.csv'):
+        os.remove(r'C:\Users\omer_an\Downloads\kaggle_bgu\all\submission_with_tunning.csv')
 
     rf = RandomForestRegressor(n_estimators=200, min_samples_split=2, min_samples_leaf=4, max_depth=40,
                                bootstrap=True, random_state=42) # 0.5813121361665429
@@ -115,7 +117,37 @@ if __name__ == '__main__':
     # y_pred_with_tune = rf_random.predict(X_competitopn)
     print("after fit #############")
 
-    #todo: here addd code that makw csv with 2 coloumns , ['Id','Class'] , Class and convert 0 to 0.001
+    # print importance fuatures by RF
+    importances = rf.feature_importances_
+    std = np.std([tree.feature_importances_ for tree in rf.estimators_],
+                 axis=0)
+    indices = np.argsort(importances)[::-1]
+
+    # Print the feature ranking
+    print("Feature ranking:")
+
+    labels = list(X_train.columns)
+    # for i in range(len(labels)):
+    #     print("i {} lable {} {} {} ".format(i,labels[i],indices[i], importances[indices[i]]))
+
+    for f in range(X_train.shape[1]):
+        print("%d. feature %d (%f) %s" % (f + 1, indices[f], importances[indices[f]], labels[f]))
+
+    indices = indices[0:12]
+    x_col = 12
+    # Plot the feature importances of the forest
+    plt.figure()
+    plt.title("Feature importances")
+    plt.bar(range(x_col), importances[indices],
+            color="r", yerr=std[indices], align="center")
+    plt.xticks(range(x_col), labels, fontsize=6)
+
+    plt.xlim([-1, x_col])
+
+    show_plot = 0
+    if show_plot :
+        plt.show()
+
 
     with open(r'C:\Users\omer_an\Downloads\kaggle_bgu\all\submission_with_tunning.csv', 'w', newline='') as csvfile:
         indices = list(range(1, len(y_pred_no_tune)+1))
