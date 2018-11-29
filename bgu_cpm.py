@@ -88,20 +88,24 @@ if __name__ == '__main__':
 
         print("best params are : \n{} ".format(rf_random.best_params_)) #{'n_estimators': 200, 'min_samples_split': 2, 'min_samples_leaf': 4, 'max_depth': 40, 'bootstrap': True}
 
+    # TODO : this is (GB) not working
+    max_depth = [int(x) for x in np.linspace(10, 110, num=11)]
+    max_depth.append(None)
     param_test1 = {
-        'max_depth': range(3, 10, 2),
-        'min_child_weight': range(1, 6, 2)
+        'loss' : {'ls', 'lad', 'huber', 'quantile'},
+        'learning_rates': list([1, 0.5, 0.25, 0.1, 0.05, 0.01])
+        #'max_depth': max_depth
     }
 
     gb = GradientBoostingRegressor(learning_rate=0.1, n_estimators=140, max_depth=5)
 
-    gb = RandomizedSearchCV(estimator=gb, param_distributions=param_test1, n_iter=10, cv=3, verbose=2,scoring='roc_auc',
-                                   random_state=42, n_jobs=-1)
+    gb_random = RandomizedSearchCV(estimator=gb, param_distributions=param_test1, n_iter=10, cv=3, verbose=2,scoring='roc_auc',
+                            random_state=42, n_jobs=-1)
 
-    print("looking for best prams for xgb")
-    gb.fit(X_train, y_train)
+    print("looking for best prams for gradient boosting")
+    gb_random.fit(X_train, y_train)
 
-    print("best params for xgb are : \n{} ".format(xgb.best_params_))
+    print("best params for xgb are : \n{} ".format(gb_random.best_params_))
 
     y_pred_test = gb.predict(X_test)
     auc = roc_auc_score(y_test, y_pred_test)
