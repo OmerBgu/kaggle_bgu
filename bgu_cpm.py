@@ -9,24 +9,14 @@ from sklearn.model_selection import RandomizedSearchCV
 from sklearn.model_selection import train_test_split
 import csv
 import matplotlib.pyplot as plt
+from sklearn.metrics import roc_auc_score
 
-
-def evaluate(model, test_features, test_labels):
-    predictions = model.predict(test_features)
-    errors = abs(predictions - test_labels)
-    mape = 100 * np.mean(errors / test_labels)
-    accuracy = 100 - mape
-    print('Model Performance')
-    print('Average Error: {:0.4f} degrees.'.format(np.mean(errors)))
-    print('Accuracy = {:0.2f}%.'.format(accuracy))
-
-    return accuracy
+from sklearn.ensemble import GradientBoostingRegressor
 
 
 def create_x(df, is_train):
     # fill mising value with net valid sample
     df.fillna(method='bfill', inplace=True)
-    # make train X and y , TODO : make to split for CV
     if is_train:
         X_train = df.drop(['Class'], axis=1)
         y_train = df.Class
@@ -98,18 +88,32 @@ if __name__ == '__main__':
 
         print("best params are : \n{} ".format(rf_random.best_params_)) #{'n_estimators': 200, 'min_samples_split': 2, 'min_samples_leaf': 4, 'max_depth': 40, 'bootstrap': True}
 
+    param_test1 = {
+        'max_depth': range(3, 10, 2),
+        'min_child_weight': range(1, 6, 2)
+    }
+
+    gb = GradientBoostingRegressor(learning_rate=0.1, n_estimators=140, max_depth=5)
+
+    gb = RandomizedSearchCV(estimator=gb, param_distributions=param_test1, n_iter=10, cv=3, verbose=2,scoring='roc_auc',
+                                   random_state=42, n_jobs=-1)
+
+    print("looking for best prams for xgb")
+    gb.fit(X_train, y_train)
+
+    print("best params for xgb are : \n{} ".format(xgb.best_params_))
+
+    y_pred_test = gb.predict(X_test)
+    auc = roc_auc_score(y_test, y_pred_test)
+    print("xgb aux test : {}".format(auc))
 
     print("start fitting the model")
     rf.fit(X_train, y_train)
-    # base_accuracy_no_tuning = evaluate(rf, X_test, y_test)
-    # base_accuracy_with_tuning = evaluate(rf_random, X_test, y_test)
-    # print("base_accuracy_no_tuning  : {} and base_accuracy_with_tuning  : {} ".format(base_accuracy_no_tuning ,
-    #                                                                                   base_accuracy_with_tuning ))
-    from sklearn.metrics import roc_auc_score
+
 
     y_pred_test = rf.predict(X_test)
     auc = roc_auc_score(y_test, y_pred_test)
-    print("aux test : {}".format(auc))
+    print("RF aux test : {}".format(auc))
 
     y_pred_no_tune = rf.predict(X_competitopn)
     mean = np.mean(y_pred_no_tune)
@@ -125,12 +129,8 @@ if __name__ == '__main__':
 
     # Print the feature ranking
     print("Feature ranking:")
-
     labels = list(X_train.columns)
-    # for i in range(len(labels)):
-    #     print("i {} lable {} {} {} ".format(i,labels[i],indices[i], importances[indices[i]]))
-
-    for f in range(X_train.shape[1]):
+    for f in range(12):
         print("%d. feature %d (%f) %s" % (f + 1, indices[f], importances[indices[f]], labels[f]))
 
     indices = indices[0:12]
@@ -145,7 +145,7 @@ if __name__ == '__main__':
     plt.xlim([-1, x_col])
 
     show_plot = 0
-    if show_plot :
+    if show_plot:
         plt.show()
 
 
