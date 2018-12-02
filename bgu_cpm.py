@@ -2,17 +2,15 @@ import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
 import os
-from sklearn.preprocessing import OneHotEncoder
-from sklearn.preprocessing import LabelEncoder
-from sklearn.preprocessing import Imputer
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.model_selection import train_test_split
 import csv
 import matplotlib.pyplot as plt
 from sklearn.metrics import roc_auc_score
 
-from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.decomposition import PCA
 
+from RotationForest.RotationForest import RotationForest
 
 def create_x(df, is_train):
     # fill mising value with net valid sample
@@ -38,6 +36,7 @@ def create_x(df, is_train):
 
 
 if __name__ == '__main__':
+    rotate = RotationForest()
     if os.path.exists(r'C:\Users\omer_an\Downloads\kaggle_bgu\all\submission_with_tunning.csv'):
         os.remove(r'C:\Users\omer_an\Downloads\kaggle_bgu\all\submission_with_tunning.csv')
 
@@ -96,22 +95,30 @@ if __name__ == '__main__':
         'learning_rates': list([1, 0.5, 0.25, 0.1, 0.05, 0.01])
         #'max_depth': max_depth
     }
+    #PCA
+    pca = PCA(n_components=len(X_train.columns), whiten=False, copy=True)
 
-    gb = GradientBoostingRegressor(learning_rate=0.1, n_estimators=140, max_depth=5)
+    principalComponents = pca.fit_transform(X_train)
+    #print(principalComponents)
+    print(pca.explained_variance_ratio_)
 
-    gb_random = RandomizedSearchCV(estimator=gb, param_distributions=param_test1, n_iter=10, cv=3, verbose=2,scoring='roc_auc',
-                            random_state=42, n_jobs=-1)
+    # Explained variance
+    plt.plot(np.cumsum(pca.explained_variance_ratio_))
+    plt.xlabel('number of components')
+    plt.ylabel('cumulative explained variance')
+    #plt.show()
 
-    print("looking for best prams for gradient boosting")
-    gb_random.fit(X_train, y_train)
+    #exit(1)
 
-    print("best params for xgb are : \n{} ".format(gb_random.best_params_))
+    print("start fitting rotation forest ")
 
-    y_pred_test = gb.predict(X_test)
+    rotate.fit(X_train, y_train)
+
+    y_pred_test = rotate.predict(X_test)
     auc = roc_auc_score(y_test, y_pred_test)
-    print("xgb aux test : {}".format(auc))
+    print("rotation_forest aux test : {}".format(auc))
 
-    print("start fitting the model")
+    print("start fitting RF the model")
     rf.fit(X_train, y_train)
 
 
