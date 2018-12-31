@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import Imputer
@@ -8,6 +9,11 @@ from sklearn.model_selection import RandomizedSearchCV
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import train_test_split
 from imblearn.over_sampling import SMOTE
+from imblearn.over_sampling import RandomOverSampler
+from imblearn.under_sampling import RandomUnderSampler
+from imblearn.over_sampling import SMOTENC
+from imblearn.combine import SMOTETomek
+from imblearn.ensemble import EasyEnsemble
 import csv
 from sklearn.metrics import roc_auc_score
 import os
@@ -61,14 +67,9 @@ if __name__ == '__main__':
 
     if os.path.exists(submision_apth ):
         os.remove(submision_apth )
+    # rf = RandomForestRegressor(n_estimators=500,max_features=9, min_samples_split=8, min_samples_leaf=4, max_depth=100,bootstrap=True, random_state=42)
+    rf = RandomForestClassifier(n_estimators=1000, max_features=9, min_samples_split=8, min_samples_leaf=4, max_depth=100,bootstrap=True, random_state=42) #- > 0.63891
 
-    rf = RandomForestRegressor(n_estimators=500,max_features=9, min_samples_split=8, min_samples_leaf=4, max_depth=100,bootstrap=True, random_state=42)
-
-    # {'bootstrap': True, 'max_depth': 60, 'max_features': 9, 'min_samples_leaf': 4, 'min_samples_split': 8}
-    #n_estimators': 200, min_samples_split: 2, min_samples_leaf: 4, max_depth: 40, bootstrap: True
-    #{'bootstrap': True, 'max_depth': 100, 'max_features': 9, 'min_samples_leaf': 4, 'min_samples_split': 8, 'n_estimators': 500}
-
-    #{'max_depth': 8, 'max_features': 'auto', 'n_estimators': 500}
 
     train_df = pd.read_csv(base_path  + r'saftey_efficay_myopiaTrain.csv')
     test_df = pd.read_csv( base_path  + r'saftey_efficay_myopiaTest.csv')
@@ -80,19 +81,47 @@ if __name__ == '__main__':
 
     X_competiton, dummy = create_x(test_df, 0)
 
-    X_train, X_test, y_train, y_test = train_test_split(X_train, y_train, test_size=0.4, random_state=42)
-    #sm = SMOTE(random_state=42, ratio=0.98)
-    sm = SMOTE(random_state=42,ratio=0.35) # 0.4 -> 0.64568 , 0.5 - > 0.64228, 0.3 - > 0.64342, 0.5 - >  0.65504 (best so far)
-    X_train, y_train = sm.fit_sample(X_train, y_train)
+    X_train, X_test, y_train, y_test = train_test_split(X_train, y_train, test_size=0.01, random_state=42)
+
+    # sm = SMOTE(random_state=42, ratio=0.45)  # in regression : 0.4 -> 0.64568 , 0.5 - > 0.64228, 0.3 - > 0.64342, 0.5 - >  0.65504 (best so far)
+    # clasification 0.45 -> 0.64766 (best in classficaiton), 0.55 -> 0.63275, (got to far), 0.4 ->0.63903, 0.5 -> 0.64671
+    # X_train, y_train = sm.fit_sample(X_train, y_train)
+
+    use_EasyEnsemble =0
+    if use_EasyEnsemble :
+        e = EasyEnsemble(random_state=0, n_subsets=10)
+        e.fit(X_train, y_train)
+
+        X_train, y_train = e.fit_sample(X_train, y_train)
+
+
+
+    use_SMOTETomek =0
+    if use_SMOTETomek:
+        smt = SMOTETomek()
+        X_train, y_train = smt.fit_sample(X_train, y_train )
+
+
+    use_RandomSampler =0
+    if use_RandomSampler :
+        ros = RandomOverSampler(random_state=42)
+        ros.fit(X_train, y_train)
+        X_train, y_train= ros.fit_resample(X_train, y_train)
+
+    use_smote = 0
+    if use_smote:
+        #sm = SMOTE(random_state=42, ratio=0.98)
+        sm = SMOTE(random_state=42,ratio=0.35) # 0.4 -> 0.64568 , 0.5 - > 0.64228, 0.3 - > 0.64342, 0.35 - >  0.65504 (best so far)
+        X_train, y_train = sm.fit_sample(X_train, y_train)
 
     look_for_best_param = False
     if look_for_best_param:
         param_grid = {
             'bootstrap': [True],
-            'max_depth': [ 60,80,100, 150],
-            'max_features': [5, 7, 9,'auto'],
+            'max_depth': [ 80,100],
+            'max_features': [5,  9,'auto'],
             'min_samples_leaf': [4, 7, 15],
-            'min_samples_split': [8, 10, 12]
+            'min_samples_split': [8, 12]
             #'n_estimators': [300, 500 ,1000]
         }
 
@@ -102,9 +131,7 @@ if __name__ == '__main__':
         #     'max_depth': [4, 5, 6, 7, 8]
         # }
 
-
-        rf_random = GridSearchCV(estimator = rf, param_grid = param_grid,
-                          cv = 3, n_jobs = -1, verbose = 1)
+        rf_random = GridSearchCV(estimator = rf, param_grid = param_grid,cv = 3, n_jobs = -1, verbose = 1)
 
         print("start grisdSearchCV")
         rf_random.fit(X_train, y_train)
@@ -123,24 +150,20 @@ if __name__ == '__main__':
     # auc = roc_auc_score(y_test, y_pred_test)
     # print("auc score on train set : {}".format(auc))
 
-    y_pred_no_tune = rf.predict(X_competiton)
+    # y_pred_no_tune = rf.predict(X_competiton)
+    y_pred_no_tune = rf.predict_proba(X_competiton)
     y_pred_no_tune = y_pred_no_tune.astype(float)
     mean = np.mean(y_pred_no_tune)
     y_pred_no_tune = y_pred_no_tune.astype(float)
     # y_pred_with_tune = rf_random.predict(X_competitopn)
     print("end")
 
-    with open(base_path + r'submission_with_tunning.csv', 'w', newline='') as csvfile:
+    with open(base_path + r'submission.csv', 'w', newline='') as csvfile:
         indices = list(range(1, len(y_pred_no_tune) + 1))
         fieldnames = ["Id", "Class"]
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
         writer.writeheader()
         for i in range(0, len(y_pred_no_tune)):
-            if y_pred_no_tune[i] != 0:
-                writer.writerow({'Id': indices[i], 'Class': y_pred_no_tune[i]})
-            else:
-                writer.writerow({'Id': indices[i], 'Class': y_pred_no_tune[i]})
-                #writer.writerow({'Id': indices[i], 'Class': mean})
-
-
+            # writer.writerow({'Id': indices[i], 'Class': y_pred_no_tune[i]})
+            writer.writerow({'Id': indices[i], 'Class': y_pred_no_tune[i,1]}) # y_pred_no_tune[i,1] - > 0.63891
